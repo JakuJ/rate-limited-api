@@ -17,9 +17,12 @@ namespace RateLimiting.Controllers
         }
 
         [HttpGet]
-        public IActionResult Get()
+        public IActionResult Get([FromQuery(Name = "len")] string len)
         {
-            byte[] randomness = generator.GenerateRandomness(32);
+            bool success = int.TryParse(len, out int length);
+            int numBytes = success && length > 0 ? length : 32;
+
+            byte[] randomness = generator.GenerateRandomness(numBytes);
             string encoded = Convert.ToBase64String(randomness);
             Response response = new(encoded);
             return new JsonResult(response);
