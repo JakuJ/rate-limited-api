@@ -1,33 +1,43 @@
 using System;
 using Microsoft.AspNetCore.Mvc;
+using RateLimiting.Helpers;
 using RateLimiting.Randomness;
 
 namespace RateLimiting.Controllers
 {
     [ApiController]
     [Route("random")]
-    public class RandomController : IDisposable
+    [BasicAuth("rate-limiter.com")]
+    public class RandomController : Controller
     {
         private readonly IRandomGenerator generator = new CryptoProvider();
 
-        private class Response
+        private class ResponseObject
         {
             public string random { get; }
-            public Response(string random) => this.random = random;
+            public ResponseObject(string random) => this.random = random;
         }
 
         [HttpGet]
-        public IActionResult Get([FromQuery(Name = "len")] string len)
+        public IActionResult Get([FromQuery(Name = "len")] string? len)
         {
-            bool success = int.TryParse(len, out int length);
-            int numBytes = success && length > 0 ? length : 32;
+            var numBytes = 32; // TODO: Move default to config
+            if (len != null)
+            {
+                bool success = int.TryParse(len, out int length);
+                if (success && length > 0)
+                {
+                    numBytes = length;
+                }
+            }
 
             byte[] randomness = generator.GenerateRandomness(numBytes);
             string encoded = Convert.ToBase64String(randomness);
-            Response response = new(encoded);
+            ResponseObject response = new(encoded);
+
+            Response.Headers.Add("X-Rate-Limit", "1024");
+
             return new JsonResult(response);
         }
-
-        public void Dispose() => generator.Dispose();
     }
 }
