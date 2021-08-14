@@ -1,16 +1,19 @@
 using System;
+using System.Text.Json.Serialization;
 using Microsoft.AspNetCore.Mvc;
-using RateLimiting.Helpers;
-using RateLimiting.Randomness;
+using Server.Common.BasicAuth;
+using Server.Common.Randomness;
 
-namespace RateLimiting.Controllers
+namespace Server.Controllers
 {
     [ApiController]
     [Route("random")]
-    [BasicAuth("rate-limiter.com")]
+    [BasicAuth] // TODO: Add realm?
     public class RandomController : Controller
     {
-        private readonly IRandomGenerator generator = new CryptoProvider();
+        private readonly IRandomnessSource generator;
+
+        public RandomController(IRandomnessSource generator) => this.generator = generator;
 
         private class ResponseObject
         {

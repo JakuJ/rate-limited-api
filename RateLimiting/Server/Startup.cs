@@ -1,9 +1,9 @@
-using System.Net;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.Extensions.DependencyInjection;
+using Server.Common.Randomness;
 
-namespace RateLimiting
+namespace Server
 {
     public class Startup
     {
@@ -14,16 +14,15 @@ namespace RateLimiting
                 .AddJsonOptions(options => options.JsonSerializerOptions.PropertyNamingPolicy = null);
 
             services.AddAuthentication();
+
+            services.AddSingleton<IRandomnessSource>(new CryptoProvider());
         }
 
         public void Configure(IApplicationBuilder app, IWebHostEnvironment env)
         {
             app.UseRouting();
             app.UseAuthentication();
-            app.UseEndpoints(endpoints =>
-            {
-                endpoints.MapControllers();
-            });
+            app.UseEndpoints(endpoints => { endpoints.MapControllers(); });
         }
     }
 }

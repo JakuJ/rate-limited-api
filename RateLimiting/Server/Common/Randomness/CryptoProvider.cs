@@ -1,9 +1,9 @@
 using System;
 using System.Security.Cryptography;
 
-namespace RateLimiting.Randomness
+namespace Server.Common.Randomness
 {
-    public class CryptoProvider : IRandomGenerator
+    public class CryptoProvider : IRandomnessSource, IDisposable
     {
         private readonly RandomNumberGenerator generator = RandomNumberGenerator.Create();
 
@@ -14,10 +14,6 @@ namespace RateLimiting.Randomness
             return result;
         }
 
-        public void Dispose()
-        {
-            GC.SuppressFinalize(generator);
-            generator.Dispose();
-        }
+        public void Dispose() => generator.Dispose();
     }
 }

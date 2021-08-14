@@ -3,7 +3,7 @@ using System.Text;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Filters;
 
-namespace RateLimiting.Helpers
+namespace Server.Common.BasicAuth
 {
     public class BasicAuthFilter : IAuthorizationFilter
     {

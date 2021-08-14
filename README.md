@@ -13,3 +13,6 @@ dotnet dev-certs https --trust
 ### TODO:
 - SSL certificate verification
 - Docker support
+
+Notes:
+- Stress testing done with K6.
