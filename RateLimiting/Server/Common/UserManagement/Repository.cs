@@ -3,9 +3,9 @@ using Microsoft.EntityFrameworkCore;
 #nullable disable
 namespace Server.Common.UserManagement
 {
-    public class StorageContext : DbContext
+    public class Repository : DbContext
     {
-        public StorageContext(DbContextOptions<StorageContext> options) : base(options)
+        public Repository(DbContextOptions<Repository> options) : base(options)
         {
         }
 

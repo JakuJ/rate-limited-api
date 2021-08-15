@@ -1,3 +1,4 @@
+using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
 using Microsoft.EntityFrameworkCore;
 
@@ -9,8 +10,11 @@ namespace Server.Common.UserManagement
     {
         public int UserId { get; set; }
 
+        [Required]
+        [MinLength(6)]
+        [MaxLength(64)]
         public string Username { get; set; }
 
-        public string PasswordHash { get; set; }
+        [Required] public string PasswordHash { get; set; }
     }
 }

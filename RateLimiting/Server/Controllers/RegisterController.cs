@@ -1,8 +1,8 @@
-using System;
-using System.Text.Json.Serialization;
+using System.Linq;
+using System.Threading.Tasks;
 using Microsoft.AspNetCore.Mvc;
-using Server.Common.Randomness;
 using Server.Common.UserManagement;
+using Server.Models.Register;
 
 namespace Server.Controllers
 {
@@ -10,33 +10,47 @@ namespace Server.Controllers
     [Route("[controller]")]
     public class RegisterController : Controller
     {
-        private IUserManager userManager;
+        private Repository repository;
+        private IPasswordHasher hasher;
 
-        public RegisterController(IUserManager userManager) => this.userManager = userManager;
-
-        private class ResponseObject
+        public RegisterController(Repository repository, IPasswordHasher hasher)
         {
-            public int Id { get; set; }
-        }
-
-        public class CreateUserBody
-        {
-            public string username { get; set; }
-            public string password { get; set; }
+            this.repository = repository;
+            this.hasher = hasher;
         }
 
         [HttpPost]
-        public IActionResult Post([FromBody] CreateUserBody body)
+        public async Task<ActionResult<User>> Post([FromBody] RequestBody body)
         {
-            int? id = userManager.RegisterUser(body.username, body.password);
-            if (id != null)
+            // Validation
+            bool exists = repository.Users.Any(u => u.Username == body.username);
+            if (exists)
             {
-                return new JsonResult(new ResponseObject {Id = id.Value});
+                ModelState.AddModelError("username", "Username already in use");
+                return BadRequest(ModelState);
             }
-            else
+
+            if (body.username is {Length: < 6 or > 64})
             {
-                return new BadRequestResult(); // TODO: Message
+                ModelState.AddModelError("username", "Username must be between 6 and 64 character long");
+                return BadRequest(ModelState);
             }
+
+            if (body.password is {Length: < 8 or > 64})
+            {
+                ModelState.AddModelError("password", "Password must be between 8 and 64 character long");
+                return BadRequest(ModelState);
+            }
+
+            // Create new user
+            string hash = hasher.HashPassword(body.password);
+            User user = new() {Username = body.username, PasswordHash = hash};
+
+            await repository.Users.AddAsync(user);
+            await repository.SaveChangesAsync();
+
+            // Return 200 OK
+            return new OkObjectResult(new ResponseBody {Id = user.UserId});
         }
     }
 }

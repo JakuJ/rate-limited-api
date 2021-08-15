@@ -1,8 +1,8 @@
 using System;
-using System.Text.Json.Serialization;
 using Microsoft.AspNetCore.Mvc;
 using Server.Common.BasicAuth;
 using Server.Common.Randomness;
+using Server.Models.Random;
 
 namespace Server.Controllers
 {
@@ -15,12 +15,6 @@ namespace Server.Controllers
 
         public RandomController(IRandomnessSource generator) => this.generator = generator;
 
-        private class ResponseObject
-        {
-            public string random { get; }
-            public ResponseObject(string random) => this.random = random;
-        }
-
         [HttpGet]
         public IActionResult Get([FromQuery(Name = "len")] string? len)
         {
@@ -28,19 +22,23 @@ namespace Server.Controllers
             if (len != null)
             {
                 bool success = int.TryParse(len, out int length);
-                if (success && length > 0)
+                if (success && length is >= 32 and <= 1024)
                 {
                     numBytes = length;
+                }
+                else
+                {
+                    return new BadRequestObjectResult(new {message = "Parameter 'len' must be between 32 and 1024"});
                 }
             }
 
             byte[] randomness = generator.GenerateRandomness(numBytes);
             string encoded = Convert.ToBase64String(randomness);
-            ResponseObject response = new(encoded);
+            ResponseBody response = new(encoded);
 
-            Response.Headers.Add("X-Rate-Limit", "1024");
+            Response.Headers.Add("X-Rate-Limit", (1024 - numBytes).ToString());
 
-            return new JsonResult(response);
+            return new OkObjectResult(response);
         }
     }
 }

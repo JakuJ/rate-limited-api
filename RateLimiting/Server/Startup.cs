@@ -19,9 +19,8 @@ namespace Server
 
             services.AddSingleton<IRandomnessSource, CryptoProvider>();
 
-            services.AddDbContext<StorageContext>(options => options.UseInMemoryDatabase("database"));
+            services.AddDbContext<Repository>(options => options.UseInMemoryDatabase("database"));
             services.AddSingleton<IPasswordHasher, ArgonHasher>();
-            services.AddScoped<IUserManager, UserManager>();
         }
 
         public void Configure(IApplicationBuilder app, IWebHostEnvironment env)
