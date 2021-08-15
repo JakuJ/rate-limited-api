@@ -1,7 +1,9 @@
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Server.Common.Randomness;
+using Server.Common.UserManagement;
 
 namespace Server
 {
@@ -15,7 +17,11 @@ namespace Server
 
             services.AddAuthentication();
 
-            services.AddSingleton<IRandomnessSource>(new CryptoProvider());
+            services.AddSingleton<IRandomnessSource, CryptoProvider>();
+
+            services.AddDbContext<StorageContext>(options => options.UseInMemoryDatabase("database"));
+            services.AddSingleton<IPasswordHasher, ArgonHasher>();
+            services.AddScoped<IUserManager, UserManager>();
         }
 
         public void Configure(IApplicationBuilder app, IWebHostEnvironment env)

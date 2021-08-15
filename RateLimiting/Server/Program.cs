@@ -1,5 +1,8 @@
+using System;
 using Microsoft.AspNetCore.Hosting;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
+using Server.Common.UserManagement;
 
 namespace Server
 {
@@ -7,7 +10,18 @@ namespace Server
     {
         public static void Main(string[] args)
         {
-            CreateHostBuilder(args).Build().Run();
+            IHost? host = CreateHostBuilder(args).Build();
+
+            using (IServiceScope serviceScope = host.Services.CreateScope())
+            {
+                IServiceProvider services = serviceScope.ServiceProvider;
+                IUserManager userManager = services.GetRequiredService<IUserManager>();
+
+                userManager.RegisterUser("someuser", "somepassword");
+                userManager.RegisterUser("someotheruser", "somepassword");
+            }
+
+            host.Run();
         }
 
         private static IHostBuilder CreateHostBuilder(string[] args) =>

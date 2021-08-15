@@ -7,7 +7,7 @@ using Server.Common.Randomness;
 namespace Server.Controllers
 {
     [ApiController]
-    [Route("random")]
+    [Route("[controller]")]
     [BasicAuth] // TODO: Add realm?
     public class RandomController : Controller
     {

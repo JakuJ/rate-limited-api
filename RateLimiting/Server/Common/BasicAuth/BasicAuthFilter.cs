@@ -2,19 +2,26 @@ using System;
 using System.Text;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Filters;
+using Server.Common.UserManagement;
 
 namespace Server.Common.BasicAuth
 {
     public class BasicAuthFilter : IAuthorizationFilter
     {
         private readonly string? realm;
+        private readonly IUserManager userManager;
 
-        public BasicAuthFilter(string? realm = null) => this.realm = realm;
+        public BasicAuthFilter(IUserManager userManager, string? realm = null)
+        {
+            this.realm = realm;
+            this.userManager = userManager;
+        }
 
         public void OnAuthorization(AuthorizationFilterContext context)
         {
             string? authHeader = context.HttpContext.Request.Headers["Authorization"];
-            if (authHeader != null && authHeader.StartsWith("Basic "))
+            string? clientIdHeader = context.HttpContext.Request.Headers["X-Client-ID"];
+            if (clientIdHeader != null && authHeader != null && authHeader.StartsWith("Basic "))
             {
                 // Get the encoded username and password
                 string encodedUsernamePassword =
@@ -28,15 +35,15 @@ namespace Server.Common.BasicAuth
                 string username = decodedUsernamePassword.Split(':', 2)[0];
                 string password = decodedUsernamePassword.Split(':', 2)[1];
 
+                // Get Client-ID from header
+                bool validId = int.TryParse(clientIdHeader, out int clientId);
+
                 // Check if login is correct
-                if (IsAuthorized(username, password))
+                if (validId && IsAuthorized(clientId, username, password))
                 {
                     return;
                 }
             }
-
-            // Return authentication type (causes browser to show login dialog)
-            context.HttpContext.Response.Headers["WWW-Authenticate"] = "Basic";
 
             // Add realm if it is not null
             if (!string.IsNullOrWhiteSpace(realm))
@@ -49,11 +56,10 @@ namespace Server.Common.BasicAuth
         }
 
         // Make your own implementation of this
-        private static bool IsAuthorized(string username, string password)
+        private bool IsAuthorized(int id, string username, string password)
         {
             // Check that username and password are correct
-            return username.Equals("someuser", StringComparison.InvariantCultureIgnoreCase)
-                   && password.Equals("somepassword");
+            return userManager.ValidateUser(id, username, password);
         }
     }
 }
