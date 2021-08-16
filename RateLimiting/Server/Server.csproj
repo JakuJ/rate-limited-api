@@ -1,6 +1,6 @@
 <Project Sdk="Microsoft.NET.Sdk.Web">
 
-    <Import Project="..\msbuild\Config.props" />
+    <Import Project="..\msbuild\Source.props" />
 
     <ItemGroup>
       <PackageReference Include="Microsoft.EntityFrameworkCore" Version="5.0.9" />

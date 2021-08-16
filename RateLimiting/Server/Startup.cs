@@ -1,3 +1,4 @@
+using System.Diagnostics.CodeAnalysis;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.EntityFrameworkCore;
@@ -9,16 +10,14 @@ using Server.Common.UserManagement;
 
 namespace Server
 {
+    [SuppressMessage("ReSharper", "SA1600", Justification = "Boilerplate")]
     public class Startup
     {
-        public IConfiguration Configuration { get; }
-
         public Startup(IConfiguration configuration, IWebHostEnvironment env)
         {
-            Configuration = configuration;
         }
 
-        public void ConfigureServices(IServiceCollection services)
+        public static void ConfigureServices(IServiceCollection services)
         {
             services
                 .AddControllers()
@@ -31,10 +30,10 @@ namespace Server
             services.AddSingleton<IRandomnessSource, CryptoProvider>();
             services.AddSingleton<IPasswordHasher, ArgonHasher>();
             services.AddSingleton<IRateLimiter, TokenBucketLimiter>();
-            services.AddSingleton<IRandomConfig, AppSettingsConfig>();
+            services.AddSingleton<IRandomLimitConfig, AppSettingsLimitConfig>();
         }
 
-        public void Configure(IApplicationBuilder app, IWebHostEnvironment env)
+        public static void Configure(IApplicationBuilder app, IWebHostEnvironment env)
         {
             app.UseRouting();
             app.UseEndpoints(endpoints => { endpoints.MapControllers(); });

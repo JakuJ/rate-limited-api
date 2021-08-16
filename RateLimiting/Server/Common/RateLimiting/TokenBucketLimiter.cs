@@ -3,77 +3,85 @@ using System.Collections.Generic;
 
 namespace Server.Common.RateLimiting
 {
+    /// <summary>
+    /// An implementation of the Token Bucket rate limiting algorithm.
+    /// </summary>
     public class TokenBucketLimiter : IRateLimiter
     {
-        private class LimitState
-        {
-            private DateTime LastRequest { get; set; }
-            private double BytesRemaining { get; set; }
-            public int MaxLimit { get; }
-            public int WindowWidth { get; }
+        private readonly IRandomLimitConfig limitConfig;
 
-            public LimitState(int maxLimit, int windowWidth)
-            {
-                LastRequest = DateTime.Now;
-                MaxLimit = maxLimit;
-                WindowWidth = windowWidth;
-                BytesRemaining = maxLimit;
-            }
+        private readonly Dictionary<int, Bucket> limits = new();
 
-            public (bool success, int remaining) ConsumeLimit(int howMany)
-            {
-                UpdateRemaining();
+        /// <summary>
+        /// Initializes a new instance of the <see cref="TokenBucketLimiter"/> class.
+        /// </summary>
+        /// <param name="limitConfig">An injected instance of <see cref="IRandomLimitConfig"/>.</param>
+        public TokenBucketLimiter(IRandomLimitConfig limitConfig) => this.limitConfig = limitConfig;
 
-                if (howMany > BytesRemaining)
-                {
-                    return (false, (int) BytesRemaining);
-                }
-
-                BytesRemaining -= howMany;
-                return (true, (int) BytesRemaining);
-            }
-
-            private void UpdateRemaining()
-            {
-                DateTime now = DateTime.Now;
-                TimeSpan delta = now - LastRequest;
-                double gainedSinceLastRequest = delta.TotalSeconds * RefillRate;
-
-                BytesRemaining = Math.Min(MaxLimit, BytesRemaining + gainedSinceLastRequest);
-                LastRequest = now;
-            }
-
-            private double RefillRate => (double) MaxLimit / WindowWidth;
-        }
-
-        private readonly Dictionary<int, LimitState> limits = new();
-        private readonly IRandomConfig config;
-
-        public TokenBucketLimiter(IRandomConfig config)
-        {
-            this.config = config;
-        }
-
-        public (bool success, int remaining) CheckQuota(int user, int usage)
+        /// <inheritdoc/>
+        public (bool Success, int Remaining) CheckQuota(int user, int usage)
         {
             lock (limits)
             {
                 // If user does not have a limit configured, create a new entry
                 if (!limits.ContainsKey(user))
                 {
-                    limits.Add(user, new LimitState(config.DefaultLimit, config.DefaultWindow));
+                    limits.Add(user, new Bucket(limitConfig.DefaultLimit, limitConfig.DefaultWindow));
                 }
 
                 // Consume the limit
-                return limits[user].ConsumeLimit(usage);
+                return limits[user].ConsumeTokens(usage);
             }
         }
 
-        public (int bytes, int seconds) GetUserLimit(int user)
+        /// <inheritdoc/>
+        public (int Bytes, int Seconds) GetUserLimit(int user)
+            => limits.TryGetValue(user, out Bucket? data)
+                ? (data.Capacity, data.RefillTime)
+                : (limitConfig.DefaultLimit, limitConfig.DefaultWindow);
+
+        private class Bucket
         {
-            return limits.TryGetValue(user, out LimitState? data)
-                ? (data.MaxLimit, data.WindowWidth)
-                : (GetDefaultLimit: config.DefaultLimit, GetDefaultWindow: config.DefaultWindow);
+            public Bucket(int capacity, int refillTime)
+            {
+                LastRequest = DateTime.Now;
+                Capacity = capacity;
+                RefillTime = refillTime;
+                Tokens = capacity;
+            }
+
+            public int Capacity { get; }
+
+            public int RefillTime { get; }
+
+            private double Tokens { get; set; }
+
+            private DateTime LastRequest { get; set; }
+
+            private double RefillRate => (double)Capacity / RefillTime;
+
+            public (bool Success, int Remaining) ConsumeTokens(int howMany)
+            {
+                RefillTokens();
+
+                if (howMany > Tokens)
+                {
+                    return (false, (int)Tokens);
+                }
+
+                Tokens -= howMany;
+                return (true, (int)Tokens);
+            }
+
+            private void RefillTokens()
+            {
+                DateTime now = DateTime.Now;
+                TimeSpan delta = now - LastRequest;
+                double gainedSinceLastRequest = delta.TotalSeconds * RefillRate;
+
+                Tokens = Math.Min(Capacity, Tokens + gainedSinceLastRequest);
+                LastRequest = now;
+            }
         }
     }
 }

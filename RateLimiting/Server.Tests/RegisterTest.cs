@@ -1,10 +1,12 @@
 using System.Linq;
+using System.Net;
 using System.Net.Http;
 using System.Net.Http.Json;
 using FsCheck.Xunit;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Server.Models.Register;
 using Server.Tests.Generators;
+using Server.Tests.Helpers;
 using Xunit;
 
 namespace Server.Tests
@@ -16,10 +18,10 @@ namespace Server.Tests
 
         public RegisterTest(WebApplicationFactory<Startup> factory) => this.factory = factory;
 
-        private HttpResponseMessage Register(string username, string password, HttpClient? client = null)
+        private HttpResponseMessage Register(string username, string password, HttpClient client = null)
             => RegisterHelper.Register(username, password, client, factory).Result;
 
-        [Property(MaxTest = 20, Arbitrary = new[] {typeof(ValidPassword)})]
+        [Property(MaxTest = 20, Arbitrary = new[] { typeof(ValidPassword) })]
         public void CanRegisterUser(string password)
         {
             // Arrange
@@ -29,13 +31,13 @@ namespace Server.Tests
             HttpResponseMessage response = Register(username, password);
 
             // Assert
-            ResponseBody? body = response.Content.ReadFromJsonAsync<ResponseBody>().Result;
+            ResponseBody body = response.Content.ReadFromJsonAsync<ResponseBody>().Result;
             Assert.NotNull(body);
 
-            Assert.Equal(System.Net.HttpStatusCode.OK, response.StatusCode);
+            Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         }
 
-        [Property(Arbitrary = new[] {typeof(ValidUsername)})]
+        [Property(Arbitrary = new[] { typeof(ValidUsername) })]
         public void UsernameAlreadyTaken(string username)
         {
             // Arrange
@@ -46,28 +48,28 @@ namespace Server.Tests
             HttpResponseMessage response2 = Register(username, "password2", client);
 
             // Assert
-            Assert.Equal(System.Net.HttpStatusCode.OK, response1.StatusCode);
-            Assert.Equal(System.Net.HttpStatusCode.BadRequest, response2.StatusCode);
+            Assert.Equal(HttpStatusCode.OK, response1.StatusCode);
+            Assert.Equal(HttpStatusCode.BadRequest, response2.StatusCode);
         }
 
-        [Property(Arbitrary = new[] {typeof(InvalidUsername)})]
+        [Property(Arbitrary = new[] { typeof(InvalidUsername) })]
         public void RejectsInvalidUsernames(string username, string password)
         {
             // Act
             HttpResponseMessage response = Register(username, "validpassword");
 
             // Assert
-            Assert.Equal(System.Net.HttpStatusCode.BadRequest, response.StatusCode);
+            Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
         }
 
-        [Property(Arbitrary = new[] {typeof(InvalidPassword)})]
+        [Property(Arbitrary = new[] { typeof(InvalidPassword) })]
         public void RejectsInvalidPasswords(string password)
         {
             // Act
             HttpResponseMessage response = Register("validusername", password);
 
             // Assert
-            Assert.Equal(System.Net.HttpStatusCode.BadRequest, response.StatusCode);
+            Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
         }
     }
 }

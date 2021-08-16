@@ -12,8 +12,9 @@ using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.Extensions.DependencyInjection;
 using Server.Common;
 using Server.Common.RateLimiting;
-using Server.Models.Random;
+using Server.Models.Register;
 using Server.Tests.Generators;
+using Server.Tests.Helpers;
 using Server.Tests.Helpers.Fixtures;
 using Xunit;
 
@@ -31,7 +32,17 @@ namespace Server.Tests
             this.fixture = fixture;
         }
 
-        private IRandomConfig Config => factory.Services.GetService<IRandomConfig>();
+        private IRandomLimitConfig LimitConfig => factory.Services.GetService<IRandomLimitConfig>()!;
+
+        private static async Task<HttpResponseMessage> Random(HttpClient client, int? bytes = null)
+        {
+            if (bytes != null)
+            {
+                return await client.GetAsync($"/random?len={bytes}");
+            }
+
+            return await client.GetAsync("/random");
+        }
 
         private async Task<HttpClient> NewContext()
         {
@@ -44,7 +55,7 @@ namespace Server.Tests
             Assert.Equal(HttpStatusCode.OK, response.StatusCode);
 
             // Get client ID
-            var body = await response.Content.ReadFromJsonAsync<Models.Register.ResponseBody>();
+            ResponseBody body = await response.Content.ReadFromJsonAsync<ResponseBody>();
             int clientId = body!.Id;
 
             byte[] plainTextBytes = Encoding.UTF8.GetBytes($"{username}:testpassword");
@@ -56,16 +67,6 @@ namespace Server.Tests
             return client;
         }
 
-        private static async Task<HttpResponseMessage> Random(HttpClient client, int? bytes = null)
-        {
-            if (bytes != null)
-            {
-                return await client.GetAsync($"/random?len={bytes}");
-            }
-
-            return await client.GetAsync("/random");
-        }
-
         [Fact]
         public async Task ReturnsConfiguredNumberOfBytesByDefault()
         {
@@ -74,16 +75,17 @@ namespace Server.Tests
 
             // Act
             HttpResponseMessage response = await Random(client);
-            ResponseBody body = await response.Content.ReadFromJsonAsync<ResponseBody>();
+            Models.Random.ResponseBody body = await response.Content.ReadFromJsonAsync<Models.Random.ResponseBody>();
 
             // Assert
             Assert.Equal(HttpStatusCode.OK, response.StatusCode);
-            Assert.Equal(Config.DefaultSize, Convert.FromBase64String(body!.random).Length);
-            Assert.Equal((Config.DefaultLimit - Config.DefaultSize).ToString(),
+            Assert.Equal(LimitConfig.DefaultSize, Convert.FromBase64String(body!.Random).Length);
+            Assert.Equal(
+                (LimitConfig.DefaultLimit - LimitConfig.DefaultSize).ToString(),
                 response.Headers.GetValues("X-Rate-Limit").Single());
         }
 
-        [Property(Arbitrary = new[] {typeof(ValidLen)})]
+        [Property(Arbitrary = new[] { typeof(ValidLen) })]
         public void RespectsTheQueryParameter(int len)
         {
             // Arrange
@@ -91,15 +93,15 @@ namespace Server.Tests
 
             // Act
             HttpResponseMessage response = Random(client, len).Result;
-            ResponseBody body = response.Content.ReadFromJsonAsync<ResponseBody>().Result;
+            Models.Random.ResponseBody body = response.Content.ReadFromJsonAsync<Models.Random.ResponseBody>().Result;
 
             // Assert
             Assert.Equal(HttpStatusCode.OK, response.StatusCode);
-            Assert.Equal(len, Convert.FromBase64String(body!.random).Length);
+            Assert.Equal(len, Convert.FromBase64String(body!.Random).Length);
             Assert.Equal((1024 - len).ToString(), response.Headers.GetValues("X-Rate-Limit").Single());
         }
 
-        [Property(Arbitrary = new[] {typeof(InvalidLen)})]
+        [Property(Arbitrary = new[] { typeof(InvalidLen) })]
         public void RefusesToProcessInvalidLengths(int len)
         {
             // Arrange
@@ -117,7 +119,7 @@ namespace Server.Tests
         {
             // Arrange
             IEnumerable<HttpClient> clients = Enumerable.Range(1, 6).Select(_ => NewContext().Result);
-            int[] lens = {32, 64, 100, 200, 500, 1024};
+            int[] lens = { 32, 64, 100, 200, 500, 1024 };
 
             Dictionary<int, List<DateTime>> responses = new();
             foreach (int len in lens)
@@ -152,7 +154,7 @@ namespace Server.Tests
             Task.WaitAll(tasks);
 
             // Assert
-            double rechargeRate = Config.DefaultLimit / (double) Config.DefaultWindow;
+            double rechargeRate = LimitConfig.DefaultLimit / (double)LimitConfig.DefaultWindow;
             const double marginOfError = 20.0;
 
             foreach ((int len, List<DateTime> times) in responses)
@@ -162,7 +164,7 @@ namespace Server.Tests
 
                 foreach ((int ix, TimeSpan t) in times.Select(t => t - start).Enumerate())
                 {
-                    double maxExpected = Config.DefaultLimit + t.TotalSeconds * rechargeRate;
+                    double maxExpected = LimitConfig.DefaultLimit + t.TotalSeconds * rechargeRate;
                     Assert.InRange(len * (ix + 1), 0, maxExpected + marginOfError);
                 }
             }

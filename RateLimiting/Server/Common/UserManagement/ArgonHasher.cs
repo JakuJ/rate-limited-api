@@ -2,12 +2,15 @@ using Sodium;
 
 namespace Server.Common.UserManagement
 {
+    /// <summary>
+    /// A utility for hashing and verifying passwords using the Argon2i algorithm.
+    /// </summary>
     public class ArgonHasher : IPasswordHasher
     {
-        public string HashPassword(string password)
-            => PasswordHash.ArgonHashString(password);
+        /// <inheritdoc/>
+        public string HashPassword(string password) => PasswordHash.ArgonHashString(password);
 
-        public bool VerifyPassword(string hash, string password)
-            => PasswordHash.ArgonHashStringVerify(hash, password);
+        /// <inheritdoc/>
+        public bool VerifyPassword(string hash, string password) => PasswordHash.ArgonHashStringVerify(hash, password);
     }
 }

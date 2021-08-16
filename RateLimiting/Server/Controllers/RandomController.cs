@@ -8,15 +8,22 @@ using Server.Models.Random;
 
 namespace Server.Controllers
 {
+    /// <summary>A controller for the <b>/random</b> endpoint.</summary>
     [ApiController]
     [Route("[controller]")]
     [BasicAuth]
     public class RandomController : Controller
     {
+        private readonly int defaultSize;
         private readonly IRandomnessSource generator;
         private readonly IRateLimiter rateLimiter;
-        private readonly int defaultSize;
 
+        /// <summary>
+        /// Initializes a new instance of the <see cref="RandomController"/> class.
+        /// </summary>
+        /// <param name="generator">Injected instance of <see cref="IRandomnessSource"/>.</param>
+        /// <param name="rateLimiter">Injected instance of <see cref="IRateLimiter"/>.</param>
+        /// <param name="configuration">Injected instance of <see cref="IConfiguration"/>.</param>
         public RandomController(IRandomnessSource generator, IRateLimiter rateLimiter, IConfiguration configuration)
         {
             this.generator = generator;
@@ -24,6 +31,11 @@ namespace Server.Controllers
             defaultSize = int.Parse(configuration.GetSection("RandomConfig")["DefaultSize"]);
         }
 
+        /// <summary>
+        /// An action handler for the GET endpoint.
+        /// </summary>
+        /// <param name="len">The number of bytes of randomness to return.</param>
+        /// <returns>The result of the action method.</returns>
         [HttpGet]
         public IActionResult Get([FromQuery(Name = "len")] string? len)
         {
@@ -39,9 +51,10 @@ namespace Server.Controllers
                 }
                 else
                 {
-                    return new BadRequestObjectResult(
-                        new {message = $"Parameter 'len' must be a number greater than {numBytes}"}
-                    );
+                    return new BadRequestObjectResult(new
+                    {
+                        message = $"Parameter 'len' must be a number greater than {numBytes}",
+                    });
                 }
             }
 
@@ -56,7 +69,7 @@ namespace Server.Controllers
                 Response.StatusCode = 429;
                 return new ContentResult
                 {
-                    Content = $"Too Many Requests. Quota set to {maxBytes} bytes every {seconds} seconds."
+                    Content = $"Too Many Requests. Quota set to {maxBytes} bytes every {seconds} seconds.",
                 };
             }
 
