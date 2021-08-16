@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using System.Net;
 using System.Net.Http;
@@ -8,39 +9,43 @@ using System.Text;
 using System.Threading.Tasks;
 using FsCheck.Xunit;
 using Microsoft.AspNetCore.Mvc.Testing;
-using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Server.Common;
 using Server.Common.RateLimiting;
 using Server.Models.Random;
 using Server.Tests.Generators;
+using Server.Tests.Helpers.Fixtures;
 using Xunit;
 
 namespace Server.Tests
 {
     [Collection("/random")]
-    public class RandomTest : IClassFixture<WebApplicationFactory<Startup>>
+    public class RandomTest : IClassFixture<WebApplicationFactory<Startup>>, IClassFixture<RandomTestFixture>
     {
         private readonly WebApplicationFactory<Startup> factory;
-        private int defaultSize, defaultWindow, defaultLimit;
+        private readonly RandomTestFixture fixture;
 
-        public RandomTest(WebApplicationFactory<Startup> factory)
+        public RandomTest(WebApplicationFactory<Startup> factory, RandomTestFixture fixture)
         {
             this.factory = factory;
-            (defaultLimit, defaultWindow) = factory.Services.GetService<IRateLimiter>()!.GetUserLimit(1);
-            defaultSize =
-                int.Parse(factory.Services.GetService<IConfiguration>()!.GetSection("RandomConfig")["DefaultSize"]);
+            this.fixture = fixture;
         }
 
-        private async Task<HttpClient> NewContext(string username)
+        private IRandomConfig Config => factory.Services.GetService<IRandomConfig>();
+
+        private async Task<HttpClient> NewContext()
         {
+            // Generating unique usernames sure is hard
+            var username = $"username_{fixture.UniqueId}";
+
             HttpClient client = factory.CreateClient();
-            HttpResponseMessage response = await Helpers.Register(username, "testpassword", client, factory);
+            HttpResponseMessage response = await RegisterHelper.Register(username, "testpassword", client, factory);
 
             Assert.Equal(HttpStatusCode.OK, response.StatusCode);
 
             // Get client ID
             var body = await response.Content.ReadFromJsonAsync<Models.Register.ResponseBody>();
-            int clientId = body.Id;
+            int clientId = body!.Id;
 
             byte[] plainTextBytes = Encoding.UTF8.GetBytes($"{username}:testpassword");
             string base64 = Convert.ToBase64String(plainTextBytes);
@@ -62,10 +67,10 @@ namespace Server.Tests
         }
 
         [Fact]
-        public async Task Returns32BytesByDefault()
+        public async Task ReturnsConfiguredNumberOfBytesByDefault()
         {
             // Arrange
-            HttpClient client = await NewContext("randomusername");
+            HttpClient client = await NewContext();
 
             // Act
             HttpResponseMessage response = await Random(client);
@@ -73,15 +78,16 @@ namespace Server.Tests
 
             // Assert
             Assert.Equal(HttpStatusCode.OK, response.StatusCode);
-            Assert.Equal(defaultSize, Convert.FromBase64String(body!.random).Length);
-            Assert.Equal((defaultLimit - defaultSize).ToString(), response.Headers.GetValues("X-Rate-Limit").Single());
+            Assert.Equal(Config.DefaultSize, Convert.FromBase64String(body!.random).Length);
+            Assert.Equal((Config.DefaultLimit - Config.DefaultSize).ToString(),
+                response.Headers.GetValues("X-Rate-Limit").Single());
         }
 
-        [Property(Arbitrary = new[] {typeof(ValidLen), typeof(ValidUsername)})]
-        public void RespectsTheQueryParameter(string username, int len)
+        [Property(Arbitrary = new[] {typeof(ValidLen)})]
+        public void RespectsTheQueryParameter(int len)
         {
             // Arrange
-            HttpClient client = NewContext(username).Result;
+            HttpClient client = NewContext().Result;
 
             // Act
             HttpResponseMessage response = Random(client, len).Result;
@@ -93,11 +99,11 @@ namespace Server.Tests
             Assert.Equal((1024 - len).ToString(), response.Headers.GetValues("X-Rate-Limit").Single());
         }
 
-        [Property(Arbitrary = new[] {typeof(InvalidLen), typeof(ValidUsername)})]
-        public void RefusesToProcessInvalidLengths(string username, int len)
+        [Property(Arbitrary = new[] {typeof(InvalidLen)})]
+        public void RefusesToProcessInvalidLengths(int len)
         {
             // Arrange
-            HttpClient client = NewContext(username).Result;
+            HttpClient client = NewContext().Result;
 
             // Act
             HttpResponseMessage response = Random(client, len).Result;
@@ -106,26 +112,58 @@ namespace Server.Tests
             Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
         }
 
-        [Property(Arbitrary = new[] {typeof(ValidUsername), typeof(ValidLen)}, Timeout = 10_000, MaxTest = 20)]
-        public void DecrementsRateLimitProperly(string username, int len)
+        [Fact]
+        public void LimitsRateForConcurrentUsers()
         {
             // Arrange
-            HttpClient client = NewContext(username).Result;
+            IEnumerable<HttpClient> clients = Enumerable.Range(1, 6).Select(_ => NewContext().Result);
+            int[] lens = {32, 64, 100, 200, 500, 1024};
 
-            // Act & Assert
-            int used = defaultLimit;
-            while (true)
+            Dictionary<int, List<DateTime>> responses = new();
+            foreach (int len in lens)
             {
-                HttpResponseMessage response = Random(client, len).Result;
-                if (response.IsSuccessStatusCode)
+                responses[len] = new List<DateTime>();
+            }
+
+            async Task DoWork(HttpClient client, int len)
+            {
+                DateTime start = DateTime.Now;
+                while (true)
                 {
-                    used -= len;
-                    var remaining = int.Parse(response.Headers.GetValues("X-Rate-Limit").Single());
-                    Assert.Equal(used, remaining);
+                    HttpResponseMessage response = await Random(client, len);
+                    if (response.IsSuccessStatusCode)
+                    {
+                        responses[len].Add(DateTime.Now);
+                    }
+
+                    if (DateTime.Now - start > TimeSpan.FromSeconds(30))
+                    {
+                        break;
+                    }
                 }
-                else
+            }
+
+            // Act
+            Task[] tasks
+                = clients
+                    .Zip(lens)
+                    .Select(pair => DoWork(pair.First, pair.Second))
+                    .ToArray();
+            Task.WaitAll(tasks);
+
+            // Assert
+            double rechargeRate = Config.DefaultLimit / (double) Config.DefaultWindow;
+            const double marginOfError = 20.0;
+
+            foreach ((int len, List<DateTime> times) in responses)
+            {
+                Assert.NotEmpty(times);
+                DateTime start = times.First();
+
+                foreach ((int ix, TimeSpan t) in times.Select(t => t - start).Enumerate())
                 {
-                    break;
+                    double maxExpected = Config.DefaultLimit + t.TotalSeconds * rechargeRate;
+                    Assert.InRange(len * (ix + 1), 0, maxExpected + marginOfError);
                 }
             }
         }

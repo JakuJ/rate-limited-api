@@ -17,7 +17,7 @@ namespace Server.Tests
         public RegisterTest(WebApplicationFactory<Startup> factory) => this.factory = factory;
 
         private HttpResponseMessage Register(string username, string password, HttpClient? client = null)
-            => Helpers.Register(username, password, client, factory).Result;
+            => RegisterHelper.Register(username, password, client, factory).Result;
 
         [Property(MaxTest = 20, Arbitrary = new[] {typeof(ValidPassword)})]
         public void CanRegisterUser(string password)

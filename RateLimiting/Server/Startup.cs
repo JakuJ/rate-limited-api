@@ -30,7 +30,8 @@ namespace Server
             // DI
             services.AddSingleton<IRandomnessSource, CryptoProvider>();
             services.AddSingleton<IPasswordHasher, ArgonHasher>();
-            services.AddSingleton<IRateLimiter, InMemoryLimiter>();
+            services.AddSingleton<IRateLimiter, TokenBucketLimiter>();
+            services.AddSingleton<IRandomConfig, AppSettingsConfig>();
         }
 
         public void Configure(IApplicationBuilder app, IWebHostEnvironment env)

@@ -3,11 +3,10 @@ using System.Net.Http.Json;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Server.Models.Register;
-using Xunit;
 
 namespace Server.Tests
 {
-    public static class Helpers
+    public static class RegisterHelper
     {
         public static async Task<HttpResponseMessage> Register(string username, string password, HttpClient client,
             WebApplicationFactory<Startup> factory)
