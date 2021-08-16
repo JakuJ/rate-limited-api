@@ -61,7 +61,7 @@ namespace Server.Common.BasicAuth
                 Encoding.UTF8.GetString(Convert.FromBase64String(encodedUsernamePassword));
 
             // Split username and password
-            int colonIndex = decodedUsernamePassword.LastIndexOf(':');
+            int colonIndex = decodedUsernamePassword.IndexOf(':');
             string username = decodedUsernamePassword[.. colonIndex];
             string password = decodedUsernamePassword[(colonIndex + 1) ..];
 

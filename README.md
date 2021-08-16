@@ -22,8 +22,8 @@ This means:
 
 - Users have an unique ID assigned to them
     - Since we are using BasicAuth, the user has a username and a password
-    - We enforce some arbitrary length requirements for the username (5 - 60 characters) and the password (8 - 60
-      characters)
+    - Requirements: username is [6 - 64] characters, password is [8 - 64]
+      characters, both cannot contain a ':' symbol
     - Stored passwords are hashed and salted with Argon2
     - We expose a POST endpoint (/register) for registering new users
     - Prohibiting users from registering new accounts every millisecond is out of scope of this task

@@ -51,7 +51,7 @@ namespace Server.Tests
         }
 
         [Property(Arbitrary = new[] {typeof(InvalidUsername)})]
-        public void UsernameHasInvalidLength(string username, string password)
+        public void RejectsInvalidUsernames(string username, string password)
         {
             // Act
             HttpResponseMessage response = Register(username, "validpassword");
@@ -61,7 +61,7 @@ namespace Server.Tests
         }
 
         [Property(Arbitrary = new[] {typeof(InvalidPassword)})]
-        public void PasswordHasInvalidLength(string password)
+        public void RejectsInvalidPasswords(string password)
         {
             // Act
             HttpResponseMessage response = Register("validusername", password);

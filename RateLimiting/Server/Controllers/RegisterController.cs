@@ -27,18 +27,30 @@ namespace Server.Controllers
             if (exists)
             {
                 ModelState.AddModelError("username", "Username already in use");
-                return BadRequest(ModelState);
             }
 
             if (body.username is {Length: < 6 or > 64})
             {
                 ModelState.AddModelError("username", "Username must be between 6 and 64 character long");
-                return BadRequest(ModelState);
             }
 
             if (body.password is {Length: < 8 or > 64})
             {
                 ModelState.AddModelError("password", "Password must be between 8 and 64 character long");
+            }
+
+            if (body.username.Contains(':'))
+            {
+                ModelState.AddModelError("username", "Username cannot contain the colon symbol.");
+            }
+
+            if (body.password.Contains(':'))
+            {
+                ModelState.AddModelError("password", "Username cannot contain the colon symbol.");
+            }
+
+            if (ModelState.ErrorCount > 0)
+            {
                 return BadRequest(ModelState);
             }
 
