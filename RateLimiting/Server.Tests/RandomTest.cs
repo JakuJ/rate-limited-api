@@ -8,6 +8,9 @@ using System.Text;
 using System.Threading.Tasks;
 using FsCheck.Xunit;
 using Microsoft.AspNetCore.Mvc.Testing;
+using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.DependencyInjection;
+using Server.Common.RateLimiting;
 using Server.Models.Random;
 using Server.Tests.Generators;
 using Xunit;
@@ -18,10 +21,14 @@ namespace Server.Tests
     public class RandomTest : IClassFixture<WebApplicationFactory<Startup>>
     {
         private readonly WebApplicationFactory<Startup> factory;
+        private int defaultSize, defaultWindow, defaultLimit;
 
         public RandomTest(WebApplicationFactory<Startup> factory)
         {
             this.factory = factory;
+            (defaultLimit, defaultWindow) = factory.Services.GetService<IRateLimiter>()!.GetUserLimit(1);
+            defaultSize =
+                int.Parse(factory.Services.GetService<IConfiguration>()!.GetSection("RandomConfig")["DefaultSize"]);
         }
 
         private async Task<HttpClient> NewContext(string username)
@@ -66,8 +73,8 @@ namespace Server.Tests
 
             // Assert
             Assert.Equal(HttpStatusCode.OK, response.StatusCode);
-            Assert.Equal(32, Convert.FromBase64String(body!.random).Length);
-            Assert.Equal("992", response.Headers.GetValues("X-Rate-Limit").Single());
+            Assert.Equal(defaultSize, Convert.FromBase64String(body!.random).Length);
+            Assert.Equal((defaultLimit - defaultSize).ToString(), response.Headers.GetValues("X-Rate-Limit").Single());
         }
 
         [Property(Arbitrary = new[] {typeof(ValidLen), typeof(ValidUsername)})]
@@ -97,6 +104,30 @@ namespace Server.Tests
 
             // Assert
             Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        }
+
+        [Property(Arbitrary = new[] {typeof(ValidUsername), typeof(ValidLen)}, Timeout = 10_000, MaxTest = 20)]
+        public void DecrementsRateLimitProperly(string username, int len)
+        {
+            // Arrange
+            HttpClient client = NewContext(username).Result;
+
+            // Act & Assert
+            int used = defaultLimit;
+            while (true)
+            {
+                HttpResponseMessage response = Random(client, len).Result;
+                if (response.IsSuccessStatusCode)
+                {
+                    used -= len;
+                    var remaining = int.Parse(response.Headers.GetValues("X-Rate-Limit").Single());
+                    Assert.Equal(used, remaining);
+                }
+                else
+                {
+                    break;
+                }
+            }
         }
     }
 }

@@ -4,11 +4,6 @@ Requirements:
 
 - dotnet CLI
 
-### TODO:
-
-- SSL certificate verification?
-- Docker support?
-
 ### Objective
 
 Since this is a recruitment task, the app shall be as minimal as possible, while fulfilling all requirements.
@@ -16,7 +11,7 @@ Since this is a recruitment task, the app shall be as minimal as possible, while
 This means:
 
 - no persistence – I use EFCore, but with an in-memory provider
-- no Redis - rate limits for each user cached in-memory within the same process.
+- no Redis - rate limits for each user stored in-memory within the server process.
 
 ### Assumptions:
 

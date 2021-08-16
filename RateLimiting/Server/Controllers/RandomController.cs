@@ -1,5 +1,6 @@
 using System;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Configuration;
 using Server.Common.BasicAuth;
 using Server.Common.Randomness;
 using Server.Common.RateLimiting;
@@ -14,39 +15,44 @@ namespace Server.Controllers
     {
         private readonly IRandomnessSource generator;
         private readonly IRateLimiter rateLimiter;
+        private readonly int defaultSize;
 
-        public RandomController(IRandomnessSource generator, IRateLimiter rateLimiter)
+        public RandomController(IRandomnessSource generator, IRateLimiter rateLimiter, IConfiguration configuration)
         {
             this.generator = generator;
             this.rateLimiter = rateLimiter;
+            defaultSize = int.Parse(configuration.GetSection("RandomConfig")["DefaultSize"]);
         }
 
         [HttpGet]
         public IActionResult Get([FromQuery(Name = "len")] string? len)
         {
-            var numBytes = 32; // TODO: Move default to config
+            var userId = int.Parse(Request.Headers["X-Client-ID"]);
+            int numBytes = defaultSize;
+
             if (len != null)
             {
                 bool success = int.TryParse(len, out int length);
-                if (success && length is >= 32 and <= 1024)
+                if (success && length >= numBytes)
                 {
                     numBytes = length;
                 }
                 else
                 {
-                    return new BadRequestObjectResult(new {message = "Parameter 'len' must be between 32 and 1024"});
+                    return new BadRequestObjectResult(
+                        new {message = $"Parameter 'len' must be a number greater than {numBytes}"}
+                    );
                 }
             }
-            
+
             // Check rate limiter
-            var userId = int.Parse(Request.Headers["X-Client-ID"]);
             (bool hasQuota, int remainingQuota) = rateLimiter.CheckQuota(userId, numBytes);
 
             Response.Headers.Add("X-Rate-Limit", remainingQuota.ToString());
-            
+
             if (!hasQuota)
             {
-                (int maxBytes, int seconds) = rateLimiter.GetUserQuota(userId);
+                (int maxBytes, int seconds) = rateLimiter.GetUserLimit(userId);
                 Response.StatusCode = 429;
                 return new ContentResult
                 {
