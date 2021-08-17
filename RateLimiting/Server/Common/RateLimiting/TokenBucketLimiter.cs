@@ -8,15 +8,15 @@ namespace Server.Common.RateLimiting
     /// </summary>
     public class TokenBucketLimiter : IRateLimiter
     {
-        private readonly IRandomLimitConfig limitConfig;
+        private readonly IRateLimitConfig limitConfig;
 
         private readonly Dictionary<int, Bucket> limits = new();
 
         /// <summary>
         /// Initializes a new instance of the <see cref="TokenBucketLimiter"/> class.
         /// </summary>
-        /// <param name="limitConfig">An injected instance of <see cref="IRandomLimitConfig"/>.</param>
-        public TokenBucketLimiter(IRandomLimitConfig limitConfig) => this.limitConfig = limitConfig;
+        /// <param name="limitConfig">An injected instance of <see cref="IRateLimitConfig"/>.</param>
+        public TokenBucketLimiter(IRateLimitConfig limitConfig) => this.limitConfig = limitConfig;
 
         /// <inheritdoc/>
         public (bool Success, int Remaining) CheckQuota(int user, int usage)

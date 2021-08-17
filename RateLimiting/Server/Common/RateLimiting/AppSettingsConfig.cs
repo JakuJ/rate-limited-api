@@ -7,7 +7,7 @@ namespace Server.Common.RateLimiting
     /// Provides default configuration for rate limiter
     /// based on the <b>appsettings.json</b> file.
     /// </summary>
-    public class AppSettingsConfig : IRandomLimitConfig
+    public class AppSettingsConfig : IRateLimitConfig
     {
         private readonly IConfigurationSection config;
 

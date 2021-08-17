@@ -50,7 +50,7 @@ namespace Server.Common.BasicAuth
             bool validId = int.TryParse(clientIdHeader, out int clientId);
             if (!validId)
             {
-                context.Result = new UnauthorizedObjectResult(new { message = "Invalid Client ID" });
+                context.Result = new UnauthorizedObjectResult(new { message = "Client ID must be a number" });
                 return;
             }
 

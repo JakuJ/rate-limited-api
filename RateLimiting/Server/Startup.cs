@@ -33,7 +33,7 @@ namespace Server
             services.AddSingleton<IRandomnessSource, CryptoProvider>();
             services.AddSingleton<IPasswordHasher, ArgonHasher>();
             services.AddSingleton<IRateLimiter, TokenBucketLimiter>();
-            services.AddSingleton<IRandomLimitConfig, AppSettingsConfig>();
+            services.AddSingleton<IRateLimitConfig, AppSettingsConfig>();
         }
 
         public static void Configure(IApplicationBuilder app, IWebHostEnvironment env)

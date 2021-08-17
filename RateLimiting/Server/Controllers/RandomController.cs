@@ -69,7 +69,6 @@ namespace Server.Controllers
                 Response.StatusCode = 429;
                 return new ObjectResult(new
                 {
-                    reason = "Too Many Requests",
                     message =
                         $"The request would exceed the rate limit. Quota set to {maxBytes} bytes every {seconds} seconds.",
                 });

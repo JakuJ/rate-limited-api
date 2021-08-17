@@ -31,7 +31,7 @@ namespace Server.Tests
             this.fixture = fixture;
         }
 
-        private IRandomLimitConfig LimitConfig => factory.Services.GetService<IRandomLimitConfig>()!;
+        private IRateLimitConfig LimitConfig => factory.Services.GetService<IRateLimitConfig>()!;
 
         private static async Task<HttpResponseMessage> Random(HttpClient client, int? bytes = null)
         {

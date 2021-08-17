@@ -3,7 +3,7 @@ namespace Server.Common.RateLimiting
     /// <summary>
     /// Represents a source of default values for configuring the rate limiter for the <b>/random</b> endpoint.
     /// </summary>
-    public interface IRandomLimitConfig
+    public interface IRateLimitConfig
     {
         /// <summary>
         /// Gets the default size for the byte array returned by the endpoint.
