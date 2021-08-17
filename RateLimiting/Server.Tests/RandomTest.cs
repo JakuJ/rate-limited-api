@@ -46,7 +46,6 @@ namespace Server.Tests
 
         private async Task<HttpClient> NewContext()
         {
-            // Generating unique usernames sure is hard
             var username = $"username_{fixture.UniqueId}";
 
             HttpClient client = factory.CreateClient();
@@ -79,7 +78,7 @@ namespace Server.Tests
 
             // Assert
             Assert.Equal(HttpStatusCode.OK, response.StatusCode);
-            Assert.Equal(LimitConfig.DefaultSize, Convert.FromBase64String(body!.Random).Length);
+            Assert.Equal(LimitConfig.DefaultSize, Convert.FromBase64String(body.Random).Length);
             Assert.Equal(
                 (LimitConfig.DefaultLimit - LimitConfig.DefaultSize).ToString(),
                 response.Headers.GetValues("X-Rate-Limit").Single());
@@ -115,6 +114,58 @@ namespace Server.Tests
         }
 
         [Fact]
+        public async Task LimitsRateForConcurrentRequestsFromTheSameUser()
+        {
+            // Arrange
+            HttpClient client = await NewContext();
+            int[] lens = { 32, 37, 48, 53, 64, 70 };
+
+            List<(DateTime, int)> responses = new();
+
+            async Task DoWork(int len)
+            {
+                DateTime start = DateTime.Now;
+                while (true)
+                {
+                    HttpResponseMessage response = await Random(client, len);
+                    if (response.IsSuccessStatusCode)
+                    {
+                        responses.Add((DateTime.Now, len));
+                    }
+
+                    if (DateTime.Now - start > TimeSpan.FromSeconds(30))
+                    {
+                        break;
+                    }
+                }
+            }
+
+            // Act
+            Task[] tasks = lens.Select(DoWork).ToArray();
+            Task.WaitAll(tasks);
+
+            // Assert
+            const double marginOfError = 20.0;
+
+            // Note: The 'Testing' environment does not override any rate limits
+            double rechargeRate = LimitConfig.DefaultLimit / (double)LimitConfig.DefaultWindow;
+
+            Assert.NotEmpty(responses);
+            DateTime start = responses.First().Item1;
+
+            // At no point in time the total received number of bytes can exceed the following value:
+            // maxBytes[b] = Limit[b] + Time[s] * (Limit[b] / Window[s]), where b - bytes, s - seconds
+            // Reference: http://intronetworks.cs.luc.edu/current/html/tokenbucket.html
+            var totalLen = 0;
+            foreach ((TimeSpan t, int len) in responses.Select(t => (t.Item1 - start, t.Item2)))
+            {
+                totalLen += len;
+                double maxExpected = LimitConfig.DefaultLimit + t.TotalSeconds * rechargeRate;
+                Assert.InRange(totalLen, 0, maxExpected + marginOfError);
+            }
+        }
+
+        [Fact]
         public void LimitsRateForConcurrentUsers()
         {
             // Arrange
@@ -146,16 +197,14 @@ namespace Server.Tests
             }
 
             // Act
-            Task[] tasks
-                = clients
-                    .Zip(lens)
-                    .Select(pair => DoWork(pair.First, pair.Second))
-                    .ToArray();
+            Task[] tasks = clients.ZipWith(lens, DoWork).ToArray();
             Task.WaitAll(tasks);
 
             // Assert
-            double rechargeRate = LimitConfig.DefaultLimit / (double)LimitConfig.DefaultWindow;
             const double marginOfError = 20.0;
+
+            // Note: The 'Testing' environment does not override any rate limits
+            double rechargeRate = LimitConfig.DefaultLimit / (double)LimitConfig.DefaultWindow;
 
             foreach ((int len, List<DateTime> times) in responses)
             {

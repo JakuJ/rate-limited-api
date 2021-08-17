@@ -67,10 +67,12 @@ namespace Server.Controllers
             {
                 (int maxBytes, int seconds) = rateLimiter.GetUserLimit(userId);
                 Response.StatusCode = 429;
-                return new ContentResult
+                return new ObjectResult(new
                 {
-                    Content = $"Too Many Requests. Quota set to {maxBytes} bytes every {seconds} seconds.",
-                };
+                    reason = "Too Many Requests",
+                    message =
+                        $"The request would exceed the rate limit. Quota set to {maxBytes} bytes every {seconds} seconds.",
+                });
             }
 
             byte[] randomness = generator.GenerateRandomness(numBytes);

@@ -1,4 +1,6 @@
+using System;
 using System.Collections.Generic;
+using System.Linq;
 
 namespace Server.Common
 {
@@ -19,6 +21,27 @@ namespace Server.Common
             foreach (T t in input)
             {
                 yield return (i++, t);
+            }
+        }
+
+        /// <summary>
+        /// Zip two collections with an operator.
+        /// </summary>
+        /// <param name="input">First collection.</param>
+        /// <param name="other">Second collection.</param>
+        /// <param name="func">A function for joining the collections.</param>
+        /// <typeparam name="T1">Type of the elements of the first collection.</typeparam>
+        /// <typeparam name="T2">Type of the elements of the second collection.</typeparam>
+        /// <typeparam name="TOut">Type of the elements of the result of the zip.</typeparam>
+        /// <returns>A collection of <typeparamref name="TOut"/>.</returns>
+        public static IEnumerable<TOut> ZipWith<T1, T2, TOut>(
+            this IEnumerable<T1> input,
+            IEnumerable<T2> other,
+            Func<T1, T2, TOut> func)
+        {
+            foreach ((T1 t, T2 w) in input.Zip(other))
+            {
+                yield return func(t, w);
             }
         }
     }
