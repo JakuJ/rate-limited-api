@@ -20,7 +20,6 @@ using Xunit;
 
 namespace Server.Tests
 {
-    [Collection("/random")]
     public class RandomTest : IClassFixture<WebApplicationFactory<Startup>>, IClassFixture<RandomTestFixture>
     {
         private readonly WebApplicationFactory<Startup> factory;
@@ -44,27 +43,7 @@ namespace Server.Tests
             return await client.GetAsync("/random");
         }
 
-        private async Task<HttpClient> NewContext()
-        {
-            var username = $"username_{fixture.UniqueId}";
-
-            HttpClient client = factory.CreateClient();
-            HttpResponseMessage response = await RegisterHelper.Register(username, "testpassword", client, factory);
-
-            Assert.Equal(HttpStatusCode.OK, response.StatusCode);
-
-            // Get client ID
-            ResponseBody body = await response.Content.ReadFromJsonAsync<ResponseBody>();
-            int clientId = body!.Id;
-
-            byte[] plainTextBytes = Encoding.UTF8.GetBytes($"{username}:testpassword");
-            string base64 = Convert.ToBase64String(plainTextBytes);
-
-            client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Basic", base64);
-            client.DefaultRequestHeaders.Add("X-Client-ID", clientId.ToString());
-
-            return client;
-        }
+        private async Task<HttpClient> NewContext() => await RandomHelper.NewContext(fixture, factory);
 
         [Fact]
         public async Task ReturnsConfiguredNumberOfBytesByDefault()

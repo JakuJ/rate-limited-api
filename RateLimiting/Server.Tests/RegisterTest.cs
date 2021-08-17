@@ -11,7 +11,6 @@ using Xunit;
 
 namespace Server.Tests
 {
-    [Collection("/register")]
     public class RegisterTest : IClassFixture<WebApplicationFactory<Startup>>
     {
         private readonly WebApplicationFactory<Startup> factory;

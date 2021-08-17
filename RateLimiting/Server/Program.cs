@@ -7,6 +7,7 @@ namespace Server
     [SuppressMessage("ReSharper", "SA1600", Justification = "Boilerplate")]
     public static class Program
     {
+        [ExcludeFromCodeCoverage]
         public static void Main(string[] args)
         {
             CreateHostBuilder(args).Build().Run();

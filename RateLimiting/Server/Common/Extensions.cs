@@ -5,7 +5,7 @@ using System.Linq;
 namespace Server.Common
 {
     /// <summary>
-    /// A collection of helpful extension methods.
+    /// A collection of helpful functional extension methods missing from LINQ.
     /// </summary>
     public static class Extensions
     {
