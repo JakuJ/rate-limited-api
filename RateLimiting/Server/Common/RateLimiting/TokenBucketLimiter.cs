@@ -26,7 +26,8 @@ namespace Server.Common.RateLimiting
                 // If user does not have a limit configured, create a new entry
                 if (!limits.ContainsKey(user))
                 {
-                    limits.Add(user, new Bucket(limitConfig.DefaultLimit, limitConfig.DefaultWindow));
+                    (int limit, int window) = limitConfig.GetLimitForUser(user);
+                    limits.Add(user, new Bucket(limit, window));
                 }
 
                 // Consume the limit

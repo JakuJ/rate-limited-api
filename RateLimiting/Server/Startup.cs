@@ -13,8 +13,11 @@ namespace Server
     [SuppressMessage("ReSharper", "SA1600", Justification = "Boilerplate")]
     public class Startup
     {
+        private readonly IConfiguration configuration;
+
         public Startup(IConfiguration configuration, IWebHostEnvironment env)
         {
+            this.configuration = configuration;
         }
 
         public static void ConfigureServices(IServiceCollection services)
@@ -30,7 +33,7 @@ namespace Server
             services.AddSingleton<IRandomnessSource, CryptoProvider>();
             services.AddSingleton<IPasswordHasher, ArgonHasher>();
             services.AddSingleton<IRateLimiter, TokenBucketLimiter>();
-            services.AddSingleton<IRandomLimitConfig, AppSettingsLimitConfig>();
+            services.AddSingleton<IRandomLimitConfig, AppSettingsConfig>();
         }
 
         public static void Configure(IApplicationBuilder app, IWebHostEnvironment env)
