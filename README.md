@@ -1,7 +1,7 @@
 # Rate limiting API
 
-This implementation of the assignment task intends to meet the basic requirements and the optional extension of
-allowing the rate limit to differ between different clients.
+This implementation of the assignment task intends to meet the basic requirements and the optional extension of allowing
+the rate limit to differ between different clients.
 
 ## Running the app
 
@@ -9,6 +9,7 @@ allowing the rate limit to differ between different clients.
 
 - dotnet CLI
 - .NET 5 SDK
+- Python3 (optional, see below)
 
 ```shell
 # build and run the server
@@ -20,7 +21,10 @@ dotnet test
 
 By default, the app listens on `https://localhost:5001` (and only HTTPS).
 
-**How you are sure the API works as intended?**
+**Note:** The app uses a development SSL certificate. Disable certificate verification if you want to test it using e.g.
+Postman.
+
+### How you are sure the API works as intended?
 
 The app has 98% test coverage, and rate limiting is tested in two scenarios:
 
@@ -30,8 +34,26 @@ The app has 98% test coverage, and rate limiting is tested in two scenarios:
 Both scenarios run for 30 seconds, and at the end we validate whether the received number of bytes exceeds the
 theoretical threshold.
 
-Property testing with `FsCheck` is used for the `/register` endpoint, essentially fuzzing the endpoint with all sorts of usernames and passwords to see if something breaks.
-Same thing is done for verifying whether the `len` query parameter is handled correctly. 
+Property testing with `FsCheck` is used for the `/register` endpoint, essentially fuzzing the endpoint with all sorts of
+usernames and passwords to see if something breaks. Same thing is done for verifying whether the `len` query parameter
+is handled correctly.
+
+I've also hacked together a script that plots total bytes received vs time for a number of concurrent clients.
+
+All clients were configured to use default limits (1024 bytes per 10 seconds). This results in a graph like this:
+
+![](./extra/limits.png)
+
+As we can see, no client can go above the theoretical threshold of `1024 + t * (1024 / 10)` bytes at time `t`. For some
+clients (32 and 64 bytes per request) the limit recharges quicker than they can consume it.
+
+To generate a plot like this, have the app running at `localhost:5001` and then:
+
+```shell
+cd extras
+pip3 install -r requirements.txt
+python3 plot_rate_limit.py
+```
 
 ## Design decisions
 
