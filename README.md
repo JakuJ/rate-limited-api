@@ -12,11 +12,14 @@ the rate limit to differ between different clients.
 - Python3 (optional, see below)
 
 ```shell
-# build and run the server
-dotnet run --project Server
+# go to the solution directory
+cd RateLimiting
 
 # run integration tests (might take up to 3 minutes)
 dotnet test
+
+# run the server
+dotnet run --project Server
 ```
 
 By default, the app listens on `https://localhost:5001` (and only HTTPS).
@@ -38,7 +41,8 @@ Property testing with `FsCheck` is used for the `/register` endpoint, essentiall
 usernames and passwords to see if something breaks. Same thing is done for verifying whether the `len` query parameter
 is handled correctly.
 
-I've also hacked together a script that plots total bytes received vs time for a number of concurrent clients.
+I've also hacked together a script that plots total bytes received vs time for a number of concurrent clients (inspired
+by [this article](http://intronetworks.cs.luc.edu/current/html/tokenbucket.html#token-bucket-definition)).
 
 All clients were configured to use default limits (1024 bytes per 10 seconds). This results in a graph like this:
 
@@ -189,3 +193,9 @@ implementation, `AppSettingsConfig`, uses the `appsettings.json` file. Example c
   }
 }
 ```
+
+### Caveats:
+
+- To be 100% safe from race conditions, I lock the access to the entire rate limit cache when information has to be
+  retrieved. Locking only the `Bucket` instance for a given user would probably be sufficient, but I didn't have time to
+  test it.
