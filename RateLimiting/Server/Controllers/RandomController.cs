@@ -1,9 +1,8 @@
 using System;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.Extensions.Configuration;
-using Server.Common.BasicAuth;
-using Server.Common.Randomness;
-using Server.Common.RateLimiting;
+using Server.Internal.BasicAuth;
+using Server.Internal.Randomness;
+using Server.Internal.RateLimiting;
 using Server.Models.Random;
 
 namespace Server.Controllers
@@ -23,12 +22,12 @@ namespace Server.Controllers
         /// </summary>
         /// <param name="generator">Injected instance of <see cref="IRandomnessSource"/>.</param>
         /// <param name="rateLimiter">Injected instance of <see cref="IRateLimiter"/>.</param>
-        /// <param name="configuration">Injected instance of <see cref="IConfiguration"/>.</param>
-        public RandomController(IRandomnessSource generator, IRateLimiter rateLimiter, IConfiguration configuration)
+        /// <param name="configuration">Injected instance of <see cref="IRateLimitConfig"/>.</param>
+        public RandomController(IRandomnessSource generator, IRateLimiter rateLimiter, IRateLimitConfig configuration)
         {
             this.generator = generator;
             this.rateLimiter = rateLimiter;
-            defaultSize = int.Parse(configuration.GetSection("RandomConfig")["DefaultSize"]);
+            defaultSize = configuration.DefaultSize;
         }
 
         /// <summary>
@@ -37,11 +36,13 @@ namespace Server.Controllers
         /// <param name="len">The number of bytes of randomness to return.</param>
         /// <returns>The result of the action method.</returns>
         [HttpGet]
-        public IActionResult Get([FromQuery(Name = "len")] string? len)
+        public IActionResult Get([FromQuery] string? len)
         {
+            // Header correctness is verified while checking BasicAuth
             var userId = int.Parse(Request.Headers["X-Client-ID"]);
-            int numBytes = defaultSize;
 
+            // Parse length of requested randomness if query parameter was given
+            int numBytes = defaultSize;
             if (len != null)
             {
                 bool success = int.TryParse(len, out int length);
@@ -53,17 +54,19 @@ namespace Server.Controllers
                 {
                     return new BadRequestObjectResult(new
                     {
-                        message = $"Parameter 'len' must be a number greater than {numBytes}",
+                        message = $"Parameter '{nameof(len)}' must be a number greater than {numBytes}",
                     });
                 }
             }
 
-            // Check rate limiter
-            (bool hasQuota, int remainingQuota) = rateLimiter.CheckQuota(userId, numBytes);
+            // Consult the rate limiter
+            (bool allowed, int remainingQuota) = rateLimiter.TryConsumeResource(userId, numBytes);
 
+            // Response needs to contain the rate limit in a header
             Response.Headers.Add("X-Rate-Limit", remainingQuota.ToString());
 
-            if (!hasQuota)
+            // Return an error if the rate limit was hit
+            if (!allowed)
             {
                 (int maxBytes, int seconds) = rateLimiter.GetUserLimit(userId);
                 Response.StatusCode = 429;
@@ -74,11 +77,11 @@ namespace Server.Controllers
                 });
             }
 
+            // Generate and return randomness
             byte[] randomness = generator.GenerateRandomness(numBytes);
             string encoded = Convert.ToBase64String(randomness);
-            ResponseBody response = new(encoded);
 
-            return new OkObjectResult(response);
+            return new OkObjectResult(new ResponseBody(encoded));
         }
     }
 }

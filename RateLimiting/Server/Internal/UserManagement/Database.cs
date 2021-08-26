@@ -4,15 +4,15 @@ using Server.Models;
 // ReSharper disable MemberCanBePrivate.Global
 // ReSharper disable AutoPropertyCanBeMadeGetOnly.Global
 #nullable disable
-namespace Server.Common.UserManagement
+namespace Server.Internal.UserManagement
 {
     /// <summary>
     /// Represents a session with the database.
     /// </summary>
-    public class Repository : DbContext
+    public class Database : DbContext
     {
         /// <inheritdoc cref="DbContext"/>
-        public Repository(DbContextOptions<Repository> options) : base(options)
+        public Database(DbContextOptions<Database> options) : base(options)
         {
         }
 

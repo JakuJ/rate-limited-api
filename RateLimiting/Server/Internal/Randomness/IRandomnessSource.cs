@@ -1,7 +1,7 @@
-namespace Server.Common.Randomness
+namespace Server.Internal.Randomness
 {
     /// <summary>
-    /// Represents a source of random bytes for the /random endpoint.
+    /// Represents a source of random bytes for the <b>/random</b> endpoint.
     /// </summary>
     public interface IRandomnessSource
     {

@@ -3,16 +3,13 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Net;
 using System.Net.Http;
-using System.Net.Http.Headers;
 using System.Net.Http.Json;
-using System.Text;
 using System.Threading.Tasks;
 using FsCheck.Xunit;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.Extensions.DependencyInjection;
-using Server.Common;
-using Server.Common.RateLimiting;
-using Server.Models.Register;
+using Server.Internal.RateLimiting;
+using Server.Models.Random;
 using Server.Tests.Generators;
 using Server.Tests.Helpers;
 using Server.Tests.Helpers.Fixtures;
@@ -53,7 +50,7 @@ namespace Server.Tests
 
             // Act
             HttpResponseMessage response = await Random(client);
-            Models.Random.ResponseBody body = await response.Content.ReadFromJsonAsync<Models.Random.ResponseBody>();
+            ResponseBody body = await response.Content.ReadFromJsonAsync<ResponseBody>();
 
             // Assert
             Assert.Equal(HttpStatusCode.OK, response.StatusCode);
@@ -61,6 +58,24 @@ namespace Server.Tests
             Assert.Equal(
                 (LimitConfig.DefaultLimit - LimitConfig.DefaultSize).ToString(),
                 response.Headers.GetValues("X-Rate-Limit").Single());
+        }
+
+        [Fact]
+        public async Task CanRequestAllAvailableBytesAtOnce()
+        {
+            // Arrange
+            HttpClient client = await NewContext();
+            var clientID = int.Parse(client.DefaultRequestHeaders.GetValues("X-Client-ID").Single());
+            (int len, _) = LimitConfig.GetLimitForUser(clientID);
+
+            // Act
+            HttpResponseMessage response = await Random(client, len);
+            ResponseBody body = await response.Content.ReadFromJsonAsync<ResponseBody>();
+
+            // Assert
+            Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+            Assert.Equal(len, Convert.FromBase64String(body.Random).Length);
+            Assert.Equal("0", response.Headers.GetValues("X-Rate-Limit").Single());
         }
 
         [Property(Arbitrary = new[] { typeof(ValidLen) })]
@@ -71,7 +86,7 @@ namespace Server.Tests
 
             // Act
             HttpResponseMessage response = Random(client, len).Result;
-            Models.Random.ResponseBody body = response.Content.ReadFromJsonAsync<Models.Random.ResponseBody>().Result;
+            ResponseBody body = response.Content.ReadFromJsonAsync<ResponseBody>().Result;
 
             // Assert
             Assert.Equal(HttpStatusCode.OK, response.StatusCode);

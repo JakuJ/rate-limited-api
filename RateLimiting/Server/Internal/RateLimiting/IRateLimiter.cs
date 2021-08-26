@@ -1,4 +1,4 @@
-namespace Server.Common.RateLimiting
+namespace Server.Internal.RateLimiting
 {
     /// <summary>
     /// Represents a rate limiter that manages access to some resource for different users.
@@ -11,7 +11,7 @@ namespace Server.Common.RateLimiting
         /// <param name="user">User ID.</param>
         /// <param name="usage">Size of the resource to be consumed.</param>
         /// <returns>Whether the user is allowed to consume the resource, and how much of it is left.</returns>
-        (bool Success, int Remaining) CheckQuota(int user, int usage);
+        (bool Success, int Remaining) TryConsumeResource(int user, int usage);
 
         /// <summary>
         /// Return information on the limits imposed on a user.

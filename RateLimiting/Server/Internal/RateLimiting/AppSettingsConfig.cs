@@ -1,13 +1,13 @@
 using System;
 using Microsoft.Extensions.Configuration;
 
-namespace Server.Common.RateLimiting
+namespace Server.Internal.RateLimiting
 {
     /// <summary>
     /// Provides default configuration for rate limiter
     /// based on the <b>appsettings.json</b> file.
     /// </summary>
-    public class AppSettingsConfig : IRateLimitConfig
+    internal class AppSettingsConfig : IRateLimitConfig
     {
         private readonly IConfigurationSection config;
 

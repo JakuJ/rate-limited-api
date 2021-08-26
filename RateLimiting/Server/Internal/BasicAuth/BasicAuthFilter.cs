@@ -3,27 +3,27 @@ using System.Linq;
 using System.Text;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Filters;
-using Server.Common.UserManagement;
+using Server.Internal.UserManagement;
 using Server.Models;
 
-namespace Server.Common.BasicAuth
+namespace Server.Internal.BasicAuth
 {
     /// <summary>
     /// A filter that confirms request authorization using BasicAuth.
     /// </summary>
-    public class BasicAuthFilter : IAuthorizationFilter
+    internal class BasicAuthFilter : IAuthorizationFilter
     {
         private readonly IPasswordHasher hasher;
-        private readonly Repository repository;
+        private readonly Database database;
 
         /// <summary>
         /// Initializes a new instance of the <see cref="BasicAuthFilter"/> class.
         /// </summary>
-        /// <param name="repository">Injected user credential repository.</param>
+        /// <param name="database">Injected user credential repository.</param>
         /// <param name="hasher">Injected password hashing functions provider.</param>
-        public BasicAuthFilter(Repository repository, IPasswordHasher hasher)
+        public BasicAuthFilter(Database database, IPasswordHasher hasher)
         {
-            this.repository = repository;
+            this.database = database;
             this.hasher = hasher;
         }
 
@@ -55,7 +55,7 @@ namespace Server.Common.BasicAuth
             }
 
             // Find user by ID
-            User? user = repository.Users.FirstOrDefault(u => u.UserId == clientId);
+            User? user = database.Users.FirstOrDefault(u => u.UserId == clientId);
             if (user == null)
             {
                 context.Result = new UnauthorizedObjectResult(new { message = "Invalid Client ID" });
@@ -76,15 +76,9 @@ namespace Server.Common.BasicAuth
             string password = decodedUsernamePassword[(colonIndex + 1)..];
 
             // Check if credentials are correct
-            if (user.Username != username)
+            if (user.Username != username || !hasher.VerifyPassword(user.PasswordHash, password))
             {
-                context.Result = new UnauthorizedObjectResult(new { message = "Invalid username" });
-                return;
-            }
-
-            if (!hasher.VerifyPassword(user.PasswordHash, password))
-            {
-                context.Result = new UnauthorizedObjectResult(new { message = "Invalid password" });
+                context.Result = new UnauthorizedObjectResult(new { message = "Invalid username or password" });
             }
         }
     }

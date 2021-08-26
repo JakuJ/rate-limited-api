@@ -1,4 +1,4 @@
-namespace Server.Common.UserManagement
+namespace Server.Internal.UserManagement
 {
     /// <summary>
     /// Represents a utility for hashing and verifying stored passwords.
@@ -6,14 +6,14 @@ namespace Server.Common.UserManagement
     public interface IPasswordHasher
     {
         /// <summary>
-        /// Hash a password with a random salt.
+        /// Hash the password with a random salt.
         /// </summary>
         /// <param name="password">The password to hash.</param>
         /// <returns>A string to be saved in the database.</returns>
         string HashPassword(string password);
 
         /// <summary>
-        /// Verify a password against a hash.
+        /// Verify the password against the hash.
         /// </summary>
         /// <param name="hash">The hash of the password.</param>
         /// <param name="password">The password.</param>

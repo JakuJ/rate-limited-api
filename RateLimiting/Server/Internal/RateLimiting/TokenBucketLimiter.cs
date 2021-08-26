@@ -1,38 +1,54 @@
 using System;
-using System.Collections.Generic;
+using System.Collections.Concurrent;
 
-namespace Server.Common.RateLimiting
+namespace Server.Internal.RateLimiting
 {
     /// <summary>
     /// An implementation of the Token Bucket rate limiting algorithm.
     /// </summary>
-    public class TokenBucketLimiter : IRateLimiter
+    internal class TokenBucketLimiter : IRateLimiter
     {
         private readonly IRateLimitConfig limitConfig;
 
-        private readonly Dictionary<int, Bucket> limits = new();
+        private readonly ConcurrentDictionary<int, Bucket> limits;
 
         /// <summary>
         /// Initializes a new instance of the <see cref="TokenBucketLimiter"/> class.
         /// </summary>
         /// <param name="limitConfig">An injected instance of <see cref="IRateLimitConfig"/>.</param>
-        public TokenBucketLimiter(IRateLimitConfig limitConfig) => this.limitConfig = limitConfig;
+        public TokenBucketLimiter(IRateLimitConfig limitConfig)
+        {
+            this.limitConfig = limitConfig;
+
+            // initial capacity of 16 is arbitrary
+            limits = new ConcurrentDictionary<int, Bucket>(Environment.ProcessorCount * 2, 16);
+        }
 
         /// <inheritdoc/>
-        public (bool Success, int Remaining) CheckQuota(int user, int usage)
+        public (bool Success, int Remaining) TryConsumeResource(int user, int usage)
         {
-            lock (limits)
-            {
-                // If user does not have a limit configured, create a new entry
-                if (!limits.ContainsKey(user))
-                {
-                    (int limit, int window) = limitConfig.GetLimitForUser(user);
-                    limits.Add(user, new Bucket(limit, window));
-                }
+            var success = false;
+            var remaining = 0;
 
-                // Consume the limit
-                return limits[user].ConsumeTokens(usage);
-            }
+            limits.AddOrUpdate(
+                user,
+                _ =>
+                {
+                    // Create a new Bucket
+                    (int limit, int window) = limitConfig.GetLimitForUser(user);
+                    Bucket bucket = new(limit, window);
+
+                    // Immediately consume the tokens
+                    (success, remaining) = bucket.ConsumeTokens(usage);
+                    return bucket;
+                },
+                (_, bucket) =>
+                {
+                    (success, remaining) = bucket.ConsumeTokens(usage);
+                    return bucket;
+                });
+
+            return (success, remaining);
         }
 
         /// <inheritdoc/>

@@ -1,7 +1,7 @@
 using System.Linq;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Mvc;
-using Server.Common.UserManagement;
+using Server.Internal.UserManagement;
 using Server.Models;
 using Server.Models.Register;
 
@@ -13,16 +13,16 @@ namespace Server.Controllers
     public class RegisterController : Controller
     {
         private readonly IPasswordHasher hasher;
-        private readonly Repository repository;
+        private readonly Database database;
 
         /// <summary>
         /// Initializes a new instance of the <see cref="RegisterController"/> class.
         /// </summary>
-        /// <param name="repository">An injected instance of <see cref="Repository"/>.</param>
+        /// <param name="database">An injected instance of <see cref="Database"/>.</param>
         /// <param name="hasher">An injected instance of <see cref="IPasswordHasher"/>.</param>
-        public RegisterController(Repository repository, IPasswordHasher hasher)
+        public RegisterController(Database database, IPasswordHasher hasher)
         {
-            this.repository = repository;
+            this.database = database;
             this.hasher = hasher;
         }
 
@@ -35,8 +35,8 @@ namespace Server.Controllers
         [HttpPost]
         public async Task<ActionResult<User>> Post([FromBody] RequestBody body)
         {
-            // Validation
-            bool exists = repository.Users.Any(u => u.Username == body.Username);
+            // Validate the provided credentials
+            bool exists = database.Users.Any(u => u.Username == body.Username);
             if (exists)
             {
                 ModelState.AddModelError("username", "Username already in use");
@@ -67,12 +67,12 @@ namespace Server.Controllers
                 return BadRequest(ModelState);
             }
 
-            // Create new user
+            // Create a new user
             string hash = hasher.HashPassword(body.Password);
             User user = new() { Username = body.Username, PasswordHash = hash };
 
-            await repository.Users.AddAsync(user);
-            await repository.SaveChangesAsync();
+            await database.Users.AddAsync(user);
+            await database.SaveChangesAsync();
 
             // Return 200 OK
             return new OkObjectResult(new ResponseBody { Id = user.UserId });

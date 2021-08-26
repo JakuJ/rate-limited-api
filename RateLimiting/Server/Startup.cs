@@ -2,34 +2,26 @@ using System.Diagnostics.CodeAnalysis;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
-using Server.Common.Randomness;
-using Server.Common.RateLimiting;
-using Server.Common.UserManagement;
+using Server.Internal.Randomness;
+using Server.Internal.RateLimiting;
+using Server.Internal.UserManagement;
 
 namespace Server
 {
     [SuppressMessage("ReSharper", "SA1600", Justification = "Boilerplate")]
     public class Startup
     {
-        private readonly IConfiguration configuration;
-
-        public Startup(IConfiguration configuration, IWebHostEnvironment env)
-        {
-            this.configuration = configuration;
-        }
-
         public static void ConfigureServices(IServiceCollection services)
         {
             services
                 .AddControllers()
                 .AddJsonOptions(options => options.JsonSerializerOptions.PropertyNamingPolicy = null);
 
-            // Database
-            services.AddDbContext<Repository>(options => options.UseInMemoryDatabase("database"));
+            // Database context
+            services.AddDbContext<Database>(options => options.UseInMemoryDatabase("database"));
 
-            // DI
+            // Dependency injection
             services.AddSingleton<IRandomnessSource, CryptoProvider>();
             services.AddSingleton<IPasswordHasher, ArgonHasher>();
             services.AddSingleton<IRateLimiter, TokenBucketLimiter>();

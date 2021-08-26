@@ -1,4 +1,4 @@
-namespace Server.Common.RateLimiting
+namespace Server.Internal.RateLimiting
 {
     /// <summary>
     /// Represents a source of default values for configuring the rate limiter for the <b>/random</b> endpoint.

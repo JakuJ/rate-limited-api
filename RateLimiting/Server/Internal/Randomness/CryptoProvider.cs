@@ -1,12 +1,12 @@
 using System;
 using System.Security.Cryptography;
 
-namespace Server.Common.Randomness
+namespace Server.Internal.Randomness
 {
     /// <summary>
     /// Generates random bytes using the <see cref="RandomNumberGenerator"/> class.
     /// </summary>
-    public class CryptoProvider : IRandomnessSource, IDisposable
+    internal class CryptoProvider : IRandomnessSource, IDisposable
     {
         private readonly RandomNumberGenerator generator = RandomNumberGenerator.Create();
 

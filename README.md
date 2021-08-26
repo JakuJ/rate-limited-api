@@ -1,7 +1,24 @@
 # Rate limiting API
 
-This implementation of the assignment task intends to meet the basic requirements and the optional extension of allowing
-the rate limit to differ between different clients.
+The goal of this project was to create a service that exposes a simple REST endpoint:
+
+```
+GET /random
+```
+
+which will by default return 32 bytes of randomness. 
+
+Additional requirements include:
+- The client of the API must be properly authenticated with HTTP Basic Authentication.
+- The client can request a different amount of bytes using the `len` query parameter
+- The API must be rate limited by allowing only 1024 bytes of randomness per 10 seconds.
+- The rate limit must be allowed to differ between different clients. This could be done through configuration.
+- The API must return an appropriate message back to the client if the rate is spent, or if the request would exceed the remaining limit.
+- If the request can be served, the response must contain a header specifying the remaining rate limit in a header.
+
+```
+X-Rate-Limit: <amount left>
+```
 
 ## Running the app
 
@@ -27,28 +44,28 @@ By default, the app listens on `https://localhost:5001` (and only HTTPS).
 **Note:** The app uses a development SSL certificate. Disable certificate verification if you want to test it using e.g.
 Postman.
 
-### How you are sure the API works as intended?
+## Does the API work as intended?
 
-The app has 98% test coverage, and rate limiting is tested in two scenarios:
+The app has 99% test coverage and rate limiting is tested in two scenarios:
 
 - by spamming the API by multiple users at the same time.
 - by spamming the API with concurrent requests from a single user.
 
-Both scenarios run for 30 seconds, and at the end we validate whether the received number of bytes exceeds the
+Both scenarios run for 30 seconds, and at the end I validate whether the received number of bytes exceeds the
 theoretical threshold.
 
 Property testing with `FsCheck` is used for the `/register` endpoint, essentially fuzzing the endpoint with all sorts of
 usernames and passwords to see if something breaks. Same thing is done for verifying whether the `len` query parameter
 is handled correctly.
 
-I've also hacked together a script that plots total bytes received vs time for a number of concurrent clients (inspired
+Moreover, I hacked together a script that plots total bytes received vs time for a number of concurrent clients (inspired
 by [this article](http://intronetworks.cs.luc.edu/current/html/tokenbucket.html#token-bucket-definition)).
 
 All clients were configured to use default limits (1024 bytes per 10 seconds). This results in a graph like this:
 
 ![](./extra/limits.png)
 
-As we can see, no client can go above the theoretical threshold of `1024 + t * (1024 / 10)` bytes at time `t`. For some
+No client can go above the theoretical threshold of `1024 + t * (1024 / 10)` bytes at time `t`. For some
 clients (32 and 64 bytes per request) the limit recharges quicker than they can consume it.
 
 To generate a plot like this, have the app running at `localhost:5001` and then:
@@ -63,17 +80,17 @@ python3 plot_rate_limit.py
 
 ### What this app is not
 
-Due to limited time, no effort has been put towards making this app "production ready", in particular:
+This app is a simple technical demo, and so little effort has been put towards making it "production ready", in particular:
 
 - No persistence – I use EFCore, but with an in-memory provider, user accounts are ephemeral.
 - No Redis – rate limits for each user are simply stored in a dictionary.
 
-However, thanks to heavy use of DI, both the user storage and the rate limit cache can be easily replaced with something
+However, thanks to the use of dependency injection, both the user storage and the rate limit cache can be easily replaced with something
 more scalable.
 
 ### User management
 
-Since we are using BasicAuth for authentication, we need to store a table of users. A user has a username, a password,
+Since I am using BasicAuth for authentication, I need to store a table of users. A user has a username, a password,
 and a unique user ID assigned to them (used as a primary key).
 
 User passwords are hashed and salted for storage using an implementation of the Argon2id algorithm from the .NET port
@@ -81,7 +98,7 @@ of `NaCl`, `libsodium-core`. The default parameters are set to 128MB of memory a
 more than
 what [OWASP is suggesting](https://cheatsheetseries.owasp.org/cheatsheets/Password_Storage_Cheat_Sheet.html#argon2id).
 
-We enforce some requirements for the credentials:
+I enforce some requirements for the credentials:
 
 - a username must be 6 to 64 characters in length – there are arbitrary limits
 - a password must be 8 to 64 characters in length – avoiding weak passwords and long password DOS attacks
@@ -160,7 +177,7 @@ If a request would exceed the current rate limit, the response is `429 Too Many 
 }
 ```
 
-### Optional expansion: configurable rate limits
+### Configurable rate limits
 
 Per-user rate limits can be provided by any class that implements `IRateLimitConfig`. The default
 implementation, `AppSettingsConfig`, uses the `appsettings.json` file. Example configuration looks like this:
@@ -193,9 +210,3 @@ implementation, `AppSettingsConfig`, uses the `appsettings.json` file. Example c
   }
 }
 ```
-
-### Caveats:
-
-- To be 100% safe from race conditions, I lock the access to the entire rate limit cache when information has to be
-  retrieved. Locking only the `Bucket` instance for a given user would probably be sufficient, but I didn't have time to
-  test it.
